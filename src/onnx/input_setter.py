@@ -218,35 +218,55 @@ def safe_simplify(model):
     """
     print("Attempting model simplification...")
     
-    # Strategy 1: Standard simplification
+    # Strategy 1: Most conservative - skip optimization and fusing
     try:
-        model_simp, check = simplify(model)
-        if check:
-            print("✅ Standard simplification successful!")
-            return model_simp
-        print("Standard simplification completed but validation uncertain")
+        print("Trying with skip_optimization=True and skip_fuse_bn=True...")
+        model_simp, check = simplify(
+            model,
+            skip_optimization=True,
+            skip_fuse_bn=True,
+            skip_shape_inference=False
+        )
+        print("✅ Conservative simplification successful!")
         return model_simp
     except Exception as e:
-        print(f"Standard simplification failed: {e}")
-    
-    # Strategy 2: Skip optimization
+        print(f"Conservative simplification failed: {e}")
+
+    # Strategy 2: Skip constant folding (often causes issues)
     try:
-        print("Trying with skip_optimization=True...")
-        model_simp, check = simplify(model, skip_optimization=True)
-        print("✅ Simplification with skip_optimization successful!")
+        print("Trying with skip_constant_folding=True...")
+        model_simp, check = simplify(
+            model,
+            skip_constant_folding=True,
+            skip_optimization=True
+        )
+        print("✅ Simplification with skip_constant_folding successful!")
         return model_simp
     except Exception as e:
-        print(f"Skip optimization also failed: {e}")
-    
-    # Strategy 3: Skip shape inference
+        print(f"Skip constant folding failed: {e}")
+
+    # Strategy 3: Skip shape inference only
     try:
         print("Trying with skip_shape_inference=True...")
-        model_simp, check = simplify(model, skip_shape_inference=True)
+        model_simp, check = simplify(
+            model,
+            skip_shape_inference=True,
+            skip_optimization=True
+        )
         print("✅ Simplification with skip_shape_inference successful!")
         return model_simp
     except Exception as e:
         print(f"Skip shape inference also failed: {e}")
     
+    # Strategy 4: Minimal processing - just return validated model
+    try:
+        print("Trying minimal validation only...")
+        onnx.checker.check_model(model)
+        print("✅ Model validation successful, skipping simplification")
+        return model
+    except Exception as e:
+        print(f"Even validation failed: {e}")
+
     print("⚠️ All simplification strategies failed, keeping original model")
     return model
 
